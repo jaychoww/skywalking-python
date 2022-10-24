@@ -107,10 +107,11 @@ class ProfileTaskExecutionContext:
             return ProfileStatusReference.create_with_none()
 
         if threadModel == "greenlet":
+            curr = greenlet.getcurrent()
             thread_profiler = GreenletProfiler(
                 trace_context=trace_context,
                 segment_id=segment_id,
-                profiling_thread=greenlet.getcurrent,
+                profiling_thread=curr,
                 profile_context=self,
             )
             thread_profiler.start_profiling(self)
@@ -284,62 +285,59 @@ class GreenletProfiler:
         self.profile_status = ProfileStatusReference.create_with_pending()
 
     def stop_profiling(self):
-        from greenlet import getcurrent
 
-        curr = getcurrent()
+        curr = self._profiling_thread
         curr.settrace(self._old_trace)
         self.profile_status.update_status(ProfileStatus.STOPPED)
 
+    def build_snapshot(self) -> Optional[TracingThreadSnapshot]:
+        stack_list = []
+        extracted = traceback.extract_stack(self._profiling_thread.gr_frame)
+        for idx, item in enumerate(extracted):
+            if idx > config.profile_dump_max_stack_depth:
+                break
+
+            code_sig = f"{item.filename}.{item.name}: {item.lineno}"
+            stack_list.append(code_sig)
+
+        # if is first dump, check is can start profiling
+        if (
+            self.dump_sequence == 0
+            and not self._profile_context.is_start_profileable()
+        ):
+            return None
+
+        current_time = current_milli_time()
+        snapshot = TracingThreadSnapshot(
+            self._profile_context.task.task_id,
+            self._segment_id,
+            self.dump_sequence,
+            current_time,
+            stack_list,
+                    )
+        self.dump_sequence += 1
+        return snapshot
+
+
     def start_profiling(self, context: ProfileTaskExecutionContext):
         self._task_execution_context = context
-        logger.debug("====== GreenletProfiler start profiling")
         try:
-
-            curr = greenlet.getcurrent()
+            curr = self._profiling_thread
 
             def callback(event, args):
                 origin, target = args
                 if origin == curr or target == curr:
-
-                    stack_list = []
-                    extracted = traceback.extract_stack(curr.gr_frame)
-                    for idx, item in enumerate(extracted):
-                        if idx > config.profile_dump_max_stack_depth:
-                            break
-
-                        code_sig = f"{item.filename}.{item.name}: {item.lineno}"
-                        stack_list.append(code_sig)
-
-                    # if is first dump, check is can start profiling
-                    if (
-                        self.dump_sequence == 0
-                        and not self._profile_context.is_start_profileable()
-                    ):
-                        return None
-
-                    current_time = current_milli_time()
-                    snapshot = TracingThreadSnapshot(
-                        self._profile_context.task.task_id,
-                        self._segment_id,
-                        self.dump_sequence,
-                        current_time,
-                        stack_list,
-                    )
-                    self.dump_sequence += 1
+                    snapshot = self.build_snapshot()
                     if snapshot is not None:
                         agent.add_profiling_snapshot(snapshot)
                     else:
                         # tell execution context current tracing thread dump failed, stop it
                         # todo test it
-                        self._profiling_context.stop_tracing_profile(self.trace_context)
+                        logger.debug(f"gggggggg stop tracing profile:{self.trace_context}")
+                        self._profile_context.stop_tracing_profile(self.trace_context)
 
             self.profile_status.update_status(ProfileStatus.PROFILING)
             self._old_trace = curr.settrace(callback)
-        except ImportError as e:
-            logger.error("run in Greenlet Model without greenlet.")
-            self.profiling_context.stop_current_profile_task(
-                self._task_execution_context
-            )
 
         except Exception as e:
             logger.error(

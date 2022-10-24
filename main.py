@@ -45,7 +45,7 @@ def call_hello():
 def twice():
     current_time = time.time()
     call_sleep()
-    print(foo())
+    foo()
     call_sleep()
     return str(time.time() - current_time)
 
