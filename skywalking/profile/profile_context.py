@@ -34,13 +34,13 @@ from skywalking.utils.integer import AtomicInteger
 from skywalking.utils.time import current_milli_time
 
 
-threadModel = "thread"
+THREAD_MODEL = 'thread'
 try:
     from gevent import monkey
     import greenlet
 
-    if monkey.is_module_patched("threading"):
-        threadModel = "greenlet"
+    if monkey.is_module_patched('threading'):
+        THREAD_MODEL = 'greenlet'
 except ImportError:
     pass
 
@@ -55,10 +55,8 @@ class ProfileTaskExecutionContext:
         self._profiling_stop_event = None  # type: Optional[Event]
 
     def start_profiling(self):
-        logger.debug(f"======== start profiling, threadModel:{threadModel}")
-        if threadModel == "greenlet":
+        if THREAD_MODEL == 'greenlet':
             # GreenletProfiler will be started when it is created
-            # greenlet的profiler会在创建时自动启动，而threadMode的profiler需要在另外的ProfileThread运行
             pass
 
         else:
@@ -69,8 +67,7 @@ class ProfileTaskExecutionContext:
             self._profiling_thread.start()
 
     def stop_profiling(self):
-        if threadModel == "greenlet":
-            logger.debug(f"========== stop_profiling (ProfileTaskExecutionContext)")
+        if THREAD_MODEL == 'greenlet':
             for profiler in self.profiling_segment_slots:
                 if profiler and isinstance(profiler, GreenletProfiler):
                     profiler.stop_profiling()
@@ -106,7 +103,7 @@ class ProfileTaskExecutionContext:
                                                            using_slot_cnt + 1):
             return ProfileStatusReference.create_with_none()
 
-        if threadModel == "greenlet":
+        if THREAD_MODEL == 'greenlet':
             curr = greenlet.getcurrent()
             thread_profiler = GreenletProfiler(
                 trace_context=trace_context,
@@ -116,8 +113,8 @@ class ProfileTaskExecutionContext:
             )
             thread_profiler.start_profiling(self)
 
-        else:  
-            # default is threadModel
+        else:
+            # default is thread
             thread_profiler = ThreadProfiler(
                 trace_context=trace_context,
                 segment_id=segment_id,
@@ -297,7 +294,7 @@ class GreenletProfiler:
             if idx > config.profile_dump_max_stack_depth:
                 break
 
-            code_sig = f"{item.filename}.{item.name}: {item.lineno}"
+            code_sig = f'{item.filename}.{item.name}: {item.lineno}'
             stack_list.append(code_sig)
 
         # if is first dump, check is can start profiling
@@ -333,18 +330,13 @@ class GreenletProfiler:
                     else:
                         # tell execution context current tracing thread dump failed, stop it
                         # todo test it
-                        logger.debug(f"gggggggg stop tracing profile:{self.trace_context}")
                         self._profile_context.stop_tracing_profile(self.trace_context)
 
             self.profile_status.update_status(ProfileStatus.PROFILING)
             self._old_trace = curr.settrace(callback)
 
         except Exception as e:
-            logger.error(
-                "profiling task fail. task_id:[%s] error:[%s]",
-                self._profiling_context.task.task_id,
-                e,
-            )
+            logger.error('profiling task fail. task_id:[%s] error:[%s]', self._profiling_context.task.task_id, e)
             # todo test this can current stop profile task or not
             self.profiling_context.stop_current_profile_task(
                 self._task_execution_context
