@@ -27,3 +27,26 @@ To do so, you need to fork this repo on GitHub and enable GitHub actions on your
 open a Pull Request to **the fork's** master branch. 
 
 Note: GitHub automatically targets Pull Requests to the upstream repo, be careful when you open them to avoid accidental PRs to upstream.
+
+# How to run e2e test locally?
+ ## Build e2e command from skywalking-infra-e2e:
+ ```shell
+ git clone https://github.com/apache/skywalking-infra-e2e.git
+ cd skywalking-infra-e2e
+ make build
+ ```
+ the `e2e` will be placed in `skywalking-infra-e2e/bin`
+
+## Build e2e image:
+ ```shell
+ cd skywalking-python
+ export BASE_PYTHON_IMAGE=python:3.7-slim
+ docker build --build-arg BASE_PYTHON_IMAGE -t apache/skywalking-python-agent:latest-e2e --no-cache . -f tests/e2e/base/Dockerfile.e2e
+ ```
+
+## Run e2e test:
+```shell
+cd skywalking-python
+env $(cat tests/e2e/script/env |grep -v "#" |xargs) e2e run -c tests/e2e/case/profiling/greenlet/e2e.yaml 
+
+```
