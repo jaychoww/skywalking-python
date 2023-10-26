@@ -25,7 +25,11 @@ link_vector = ['https://flask.palletsprojects.com']
 support_matrix = {
     'flask': {
         '>=3.7': ['2.0']  # 1.x removed due to EOL
+    },
+    'Werkzeug': {
+        '>=3.7': ['<3']  
     }
+
 }
 note = """"""
 
