@@ -25,7 +25,7 @@ COPY tests/e2e/base/provider/* /services/
 
 # Copy the project and build
 COPY . /skywalking-python/
-RUN cd /skywalking-python && apt-get update && apt-get install -y make gcc && make install
+RUN cd /skywalking-python && apt-get update && apt-get install -y make && make install
 
 # Extra dependencies for e2e services
 RUN apt-get update \
