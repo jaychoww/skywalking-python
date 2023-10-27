@@ -43,9 +43,11 @@ try:
 
     if monkey.is_module_patched('threading'):
         THREAD_MODEL = 'greenlet'
-        logger.info('USING GREENLET MODEL')
+        logger.debug('Using greenlet model')
+    else:
+        logger.debug('Gevent monkey exists but does not patch threading, using threading model')
 except ImportError:
-    pass
+    logger.debug('Gevent does\'t exist, using threading model')
 
 
 class ProfileTaskExecutionContext:
@@ -320,11 +322,13 @@ class GreenletProfiler:
 
 
     def start_profiling(self, context: ProfileTaskExecutionContext):
+        logger.debug("GreenletProfiler::start_profiling")
         self._task_execution_context = context
         try:
             curr = self._profiling_thread
 
             def callback(event, args):
+                logger.debug("GreenletProfiler::callback")
                 origin, target = args
                 if origin == curr or target == curr:
                     try:
