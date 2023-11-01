@@ -3683,4 +3683,4 @@ sync = ["kafka-python", "requests"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7, <3.12"
-content-hash = "b915ff08809bcdb9f6ba9d14248b0926585872c31fd5cc8a5f36a28c3020a0dc"
+content-hash = "016644168e470e2904bc0a4109c0218c7b9ecf0890d17a32e28aa81bcda0e8d0"
